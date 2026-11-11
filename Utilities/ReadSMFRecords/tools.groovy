@@ -15,6 +15,7 @@ def parseArgs(String[] cliArgs){
 	cli.q(longOpt: 'hlq',args:1,optionalArg:true,argName:'hlq','High level qualifier for working dataset.')
 	cli.t(longOpt: 'type', args:1,optionalArg:true, argName:'type','SMF type to process. Can be a number or range (i.e. 0:255)')
 	cli.d(longOpt: 'datasets', args:1, valueSeparator:',', optionalArg:true, argName:'datasets','Comma separated list of SMF datasets as defined in SYS1.PARMLIB(SMFPRMxx) DSNAME option')
+	cli.l(longOpt: 'logstreams', args:1, valueSeparator:',', optionalArg:true, argName:'logstreams','Comma separated list of SMF log streams, when SMF records are recorded to log streams. Takes precedence over --datasets')
 	cli.w(longOpt: 'workDir', args:1, argName:'dir', 'Absolute path to the build output directory')
 	cli.e(longOpt: 'logEncoding', args:1, argName:'encoding', 'Encoding of output logs. Default is EBCDIC')
 	
@@ -53,12 +54,14 @@ def loadProperties(OptionAccessor opts) {
 			properties.recordType = opts.t
 	}
 	if (opts.d) properties.datasets = opts.d
+	if (opts.l) properties.logstreams = opts.l
 	if (opts.w) properties.workDir = opts.w
 	if (opts.e) properties.logEncoding = opts.e
 	
 	validateType(properties.recordType)
 	
 	println("Datasets: ${properties.datasets}")
+	println("Log streams: ${properties.logstreams}")
 	println("** Build properties at startup:")
 	println(properties.list())
 

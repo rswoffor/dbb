@@ -6,7 +6,10 @@ of SMF records. However, only the DBB SMF record (Type:122, subType:2) is fully 
 The smf.properties is loaded by the read SMF script to provide default values for several parameters. Script parameters will override these values.
 * hlq - High level qualifier for a working data set. The script will dump the SMF records to this data set and then read and process the records.
 * recordType - The SMF record type to process. This can be a single number or a range (i.e. 0:255).
-* datasets - The SMF datasets, a comma separated list, as defined in SYS1.PARMLIB(SMFPRMxx) DSNAME option.
+* datasets - The SMF datasets, a comma separated list, as defined in SYS1.PARMLIB(SMFPRMxx) DSNAME option. Use this when SMF records are recorded to SMF data sets. The script dumps them with IFASMFDP.
+* logstreams - The SMF log streams, a comma separated list, as defined in SYS1.PARMLIB(SMFPRMxx) LSNAME option. Use this when SMF records are recorded to log streams. The script dumps them with IFASMFDL. If both logstreams and datasets are set, logstreams is used.
+
+Provide either datasets or logstreams. The rest of the processing is the same for both.
  
 ### ReadSMF.groovy
 This script allows a user to read SMF records, specifically the DBB SMF record. The supported options are:
@@ -19,6 +22,9 @@ This script allows a user to read SMF records, specifically the DBB SMF record. 
 </tr>
 <tr>
  <td valign="top">-h,--help</td><td valign="top">help</td>
+</tr>
+<tr>
+ <td valign="top">-l,--logstreams &lt;logstreams&gt;</td><td valign="top">Comma separated list of SMF log streams, when SMF records are recorded to log streams. Takes precedence over --datasets</td>
 </tr>
 <tr>
  <td valign="top">-q,--hlq &lt;hlq&gt;</td><td valign="top">High level qualifier for working dataset.</td>

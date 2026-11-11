@@ -14,7 +14,13 @@ def tools = loadScript(new File("$scriptDir/tools.groovy"))
 // parse command line arguments and load build properties
 def opts = tools.parseArgs(args)
 def properties = tools.loadProperties(opts)
-tools.validateRequiredProperties(["hlq", "datasets"])
+tools.validateRequiredProperties(["hlq"])
+
+// SMF records are recorded either to SMF data sets or to log streams (SYS1.PARMLIB(SMFPRMxx) RECORDING option).
+// If log streams are specified, they are dumped with IFASMFDL. Otherwise, the SMF data sets are dumped with IFASMFDP.
+def logstreamMode = properties.logstreams ? true : false
+assert (logstreamMode || properties.datasets) : "Missing property datasets or logstreams"
+println("** Reading SMF records from " + (logstreamMode ? "log streams: ${properties.logstreams}" : "data sets: ${properties.datasets}"))
 
 def startTime = new Date()
 properties.startTime = startTime.format("yyyyMMdd.hhmmss.mmm")
@@ -43,17 +49,31 @@ def reprologFile = new File("${properties.workDir}/repro.log")
 // Also add a single OUTDD statement to indicate what SMF records types to dump	
 def smfDumpParms = ""
 def i = 0
-properties.datasets.split(',').each{ dataset ->
-	smfDumpParms += "INDD(SMFIN${++i},OPTIONS(DUMP))\n"
+if (logstreamMode)
+{
+	// IFASMFDL needs a LSNAME statement for each log stream
+	properties.logstreams.split(',').each{ logstream ->
+		smfDumpParms += "LSNAME(${logstream.trim()},OPTIONS(DUMP))\n"
+	}
+}
+else
+{
+	properties.datasets.split(',').each{ dataset ->
+		smfDumpParms += "INDD(SMFIN${++i},OPTIONS(DUMP))\n"
+	}
 }
 // By default, gets types 0-255. Use -i option to specify specific type
 smfDumpParms += """OUTDD(SMFOUT,TYPE(${(properties.recordType == null)?"0:255":properties.recordType}))"""
 
 // Set up SMF Dump utility to dump the SMF records to a temporary dataset...SMFOUT
-def smfDump = new MVSExec().pgm("IFASMFDP")
-i = 0
-properties.datasets.split(',').each{ dataset ->
-	smfDump.dd(new DDStatement().name("SMFIN${++i}").dsn(dataset).options("shr"))
+def smfDump = new MVSExec().pgm(logstreamMode ? "IFASMFDL" : "IFASMFDP")
+if (!logstreamMode)
+{
+	// IFASMFDP reads the SMF data sets through SMFIN DD statements. IFASMFDL reads the log streams directly.
+	i = 0
+	properties.datasets.split(',').each{ dataset ->
+		smfDump.dd(new DDStatement().name("SMFIN${++i}").dsn(dataset).options("shr"))
+	}
 }
 smfDump.dd(new DDStatement().name("SMFOUT").dsn("&&SMFOUT").options(smfoutOptions).pass(true))
 smfDump.dd(new DDStatement().name("SYSIN").instreamData(smfDumpParms))
