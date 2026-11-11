@@ -1,0 +1,161 @@
+@groovy.transform.BaseScript com.ibm.dbb.groovy.ScriptLoader baseScript
+import com.ibm.dbb.build.*
+import com.ibm.dbb.build.smf.*
+
+import com.ibm.jzos.ZFile
+import com.ibm.jzos.ZFileConstants
+import com.ibm.jzos.ZFileException
+import com.ibm.jzos.RecordReader
+
+// load the tools.groovy utility script
+def scriptDir = new File(getClass().protectionDomain.codeSource.location.path).parent
+def tools = loadScript(new File("$scriptDir/tools.groovy"))
+
+// parse command line arguments and load build properties
+def opts = tools.parseArgs(args)
+def properties = tools.loadProperties(opts)
+tools.validateRequiredProperties(["hlq"])
+
+// SMF records are recorded either to SMF data sets or to log streams (SYS1.PARMLIB(SMFPRMxx) RECORDING option).
+// If log streams are specified, they are dumped with IFASMFDL. Otherwise, the SMF data sets are dumped with IFASMFDP.
+def logstreamMode = properties.logstreams ? true : false
+assert (logstreamMode || properties.datasets) : "Missing property datasets or logstreams"
+println("** Reading SMF records from " + (logstreamMode ? "log streams: ${properties.logstreams}" : "data sets: ${properties.datasets}"))
+
+def startTime = new Date()
+properties.startTime = startTime.format("yyyyMMdd.hhmmss.mmm")
+println("** Read SMF start at $properties.startTime")
+
+// Set name or working dataset...After running the utility, this dataset contains the raw SMF records you've requested.
+def smfwrk="${properties.hlq}.SMF.WRK"
+try
+{
+    ZFile.remove("//'${smfwrk}'");
+}
+catch (ZFileException ex)
+{}
+
+// Define options for various datasets we will use
+def sysprintOptions = "tracks space(5,5) unit(vio) blksize(80) lrecl(80) recfm(f,b) new"
+def smfoutOptions = "CYL space(800,200) unit(SYSDA) new keep"
+def smfwrkOptions = "new keep CYL space(100,10) lrecl(32756) dsorg(PS) recfm(V,B) BLKSIZE(32760)"
+
+// Log files for the Dump Utility(IFASMFDP) and IDCAMS
+def smflogFile = new File("${properties.workDir}/smfDump.log")
+def reprologFile = new File("${properties.workDir}/repro.log")
+
+// Commands for dump utility.
+// For each dataset defined in SYS1.PARMLIB(SMFPRMxx) DSNAME parameter, add a INDD statement to commands.
+// Also add a single OUTDD statement to indicate what SMF records types to dump	
+def smfDumpParms = ""
+def i = 0
+if (logstreamMode)
+{
+	// IFASMFDL needs a LSNAME statement for each log stream
+	properties.logstreams.split(',').each{ logstream ->
+		smfDumpParms += "LSNAME(${logstream.trim()},OPTIONS(DUMP))\n"
+	}
+}
+else
+{
+	properties.datasets.split(',').each{ dataset ->
+		smfDumpParms += "INDD(SMFIN${++i},OPTIONS(DUMP))\n"
+	}
+}
+// By default, gets types 0-255. Use -i option to specify specific type
+smfDumpParms += """OUTDD(SMFOUT,TYPE(${(properties.recordType == null)?"0:255":properties.recordType}))"""
+
+// Set up SMF Dump utility to dump the SMF records to a temporary dataset...SMFOUT
+def smfDump = new MVSExec().pgm(logstreamMode ? "IFASMFDL" : "IFASMFDP")
+if (!logstreamMode)
+{
+	// IFASMFDP reads the SMF data sets through SMFIN DD statements. IFASMFDL reads the log streams directly.
+	i = 0
+	properties.datasets.split(',').each{ dataset ->
+		smfDump.dd(new DDStatement().name("SMFIN${++i}").dsn(dataset).options("shr"))
+	}
+}
+smfDump.dd(new DDStatement().name("SMFOUT").dsn("&&SMFOUT").options(smfoutOptions).pass(true))
+smfDump.dd(new DDStatement().name("SYSIN").instreamData(smfDumpParms))
+smfDump.dd(new DDStatement().name("SYSPRINT").options(sysprintOptions))
+smfDump.copy(new CopyToHFS().ddName("SYSPRINT").file(smflogFile).hfsEncoding(properties.logEncoding))
+
+// Set up IDCAMS to copy SMF records from the temporary data to one we can use and read
+def repro = new MVSExec().pgm("IDCAMS")
+repro.dd(new DDStatement().name("SMFWRK").dsn(smfwrk).options(smfwrkOptions))
+repro.dd(new DDStatement().name("SYSIN").instreamData(" REPRO INFILE(SMFOUT) OUTFILE(SMFWRK)"))
+repro.dd(new DDStatement().name("SYSPRINT").options(sysprintOptions))
+repro.copy(new CopyToHFS().ddName("SYSPRINT").file(reprologFile).hfsEncoding(properties.logEncoding))
+
+// Run the Dump and IDCAMS commands
+def rc = new MVSJob().executable(smfDump).executable(repro).maxRC(4).execute()
+println("IFASMFDP/IDCAMS rc=$rc")
+
+// The report is either an HTML report (the default) or, with the --json option, a JSON file
+def jsonMode = Boolean.parseBoolean(properties.outputJson)
+StringBuffer report = new StringBuffer()
+def builds = []
+if (!jsonMode)
+	tools.startReport(report)
+// Now data is in ${smfwrk}. We will read this data directly from dataset so we can read record by record
+if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
+{
+	RecordReader reader = null;
+	def count = 0
+	def metricsRecords = []
+	try
+	{
+		// Read each record from the working dataset
+		reader = RecordReader.newReader("//'${smfwrk}'", ZFileConstants.FLAG_DISP_SHR);
+		byte[] buffer = new byte[reader.getLrecl()];
+		while ((bytesRead = reader.read(buffer)) >= 0)
+		{
+			byte[] data = Arrays.copyOf(buffer, bytesRead)
+			try
+			{
+			   def smfRec = SmfRecordFactory.toSmfRecord(data)
+			   // Only the type 122 subtype 3 build metrics records are reported
+			   if (smfRec instanceof BuildMetricsSmfRecord)
+			   {
+			      metricsRecords << smfRec
+			      count++
+			   }
+			}
+			catch (IllegalArgumentException e)
+			{
+			   // ignore SMF records that are not type 122 subtype 2 or 3
+			}
+		}
+	}
+	finally
+	{
+		if (reader != null)
+		{
+			reader.close();
+		}
+	}
+	
+	// The metrics of one build can span several SMF records. Merge the records of each build.
+	builds = BuildMetricsSmfRecord.reassemble(metricsRecords)
+	println("** Read $count build metrics record(s) for ${builds.size()} build(s)")
+	if (!jsonMode)
+	{
+		tools.startReportTable(report)
+		builds.each{ build -> tools.reportBuildMetrics(report, build) }
+		tools.endReportTable(report)
+		builds.each{ build -> tools.reportBuildMetricsDetails(report, build) }
+		report.append("""
+	<p>Total build metrics records: $count</p>
+	<p>Total builds: ${builds.size()}</p>
+""")
+	}
+}
+if (jsonMode)
+{
+	tools.writeJsonReport(builds)
+}
+else
+{
+	tools.endReport(report)
+	tools.writeReport(report)
+}
