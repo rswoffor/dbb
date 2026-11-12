@@ -313,8 +313,17 @@ def startReport( StringBuffer report)
 		}
 
 		th {
-    		background-color: #81C4E8;
-    		color: white;
+		  		background-color: #81C4E8;
+		  		color: white;
+		}
+
+		th.sub {
+		  		background-color: #E8F4FB;
+		  		color: #1f2328;
+		}
+
+		tr.build {
+			background-color: #f2f2f2;
 		}
 
 		td.label {
@@ -421,7 +430,7 @@ def reportBuildMetrics( StringBuffer report, def build )
 		records += " (missing ${build.getMissingSequenceNumbers().join(',')})"
 
 	report.append("""
-		<tr>
+		<tr class="build">
 			<td>${escapeHtml(bm.getApplicationName())}</td>
 			<td>${escapeHtml(bm.getApplicationRepository())}</td>
 			<td>${escapeHtml(bm.getGitBranch())}</td>
@@ -520,8 +529,8 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 		details.append("""
 			<table border="1" cellpadding="4" summary="Task durations">
 				<tr>
-					<th style="text-align:left">Task</th>
-					<th style="text-align:left">Duration (ms)</th>
+					<th class="sub" style="text-align:left">Task</th>
+					<th class="sub" style="text-align:left">Duration (ms)</th>
 				</tr>""")
 		taskMetrics.each{ task ->
 			if (task.is(impactTask))
