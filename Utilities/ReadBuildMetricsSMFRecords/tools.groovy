@@ -463,18 +463,16 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 		taskMetrics.each{ task ->
 			if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
 			{
+				// The cell has no padding so the nested table fills the whole duration column. The outer border
+				// of the nested table is hidden so that it does not double up with the border of the cell.
 				report.append("""
 		<tr>
 			<td>${escapeHtml("Language(${task.getLanguage()})")}</td>
-			<td>""")
+			<td style="padding:0">""")
 				if (!task.getFileDurations().isEmpty())
 				{
 					report.append("""
-				<table border="1" cellpadding="4" summary="File durations of ${escapeHtml(task.getLanguage())}">
-					<tr>
-						<th style="text-align:left">File</th>
-						<th style="text-align:left">Duration (ms)</th>
-					</tr>""")
+				<table style="width:100%; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">""")
 					task.getFileDurations().each{ file, duration ->
 						report.append("""
 					<tr>
