@@ -447,9 +447,11 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 	report.append("""
 	<h3>Build ${escapeHtml(bm.getBuildID())} (${escapeHtml(bm.getApplicationName())})</h3>""")
 
-	def taskMetrics = bm.getTaskMetricsList().findAll{ it instanceof com.ibm.dbb.build.smf.metrics.TaskMetricImpl }
-	def languageMetrics = bm.getTaskMetricsList().findAll{ it instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl }
-
+	// One table for all tasks. A language task is shown as Language(name) and its duration cell is a
+	// nested table with the duration of each file of that language.
+	def taskMetrics = bm.getTaskMetricsList().findAll{
+		it instanceof com.ibm.dbb.build.smf.metrics.TaskMetricImpl || it instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl
+	}
 	if (taskMetrics)
 	{
 		report.append("""
@@ -459,42 +461,39 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 			<th style="text-align:left">Duration (ms)</th>
 		</tr>""")
 		taskMetrics.each{ task ->
-			report.append("""
-		<tr>
-			<td>${escapeHtml(task.getName())}</td>
-			<td>${task.getDuration()}</td>
-		</tr>""")
-		}
-		report.append("""
-	</table>""")
-	}
-
-	if (languageMetrics)
-	{
-		report.append("""
-	<br/>
-	<table border="1" cellpadding="4" summary="File durations">
-		<tr>
-			<th style="text-align:left">Language</th>
-			<th style="text-align:left">File</th>
-			<th style="text-align:left">Duration (ms)</th>
-		</tr>""")
-		languageMetrics.each{ lang ->
-			if (lang.getFileDurations().isEmpty())
+			if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
 			{
 				report.append("""
 		<tr>
-			<td>${escapeHtml(lang.getLanguage())}</td>
-			<td></td>
-			<td></td>
+			<td>${escapeHtml("Language(${task.getLanguage()})")}</td>
+			<td>""")
+				if (!task.getFileDurations().isEmpty())
+				{
+					report.append("""
+				<table border="1" cellpadding="4" summary="File durations of ${escapeHtml(task.getLanguage())}">
+					<tr>
+						<th style="text-align:left">File</th>
+						<th style="text-align:left">Duration (ms)</th>
+					</tr>""")
+					task.getFileDurations().each{ file, duration ->
+						report.append("""
+					<tr>
+						<td>${escapeHtml(file)}</td>
+						<td>${duration}</td>
+					</tr>""")
+					}
+					report.append("""
+				</table>""")
+				}
+				report.append("""</td>
 		</tr>""")
 			}
-			lang.getFileDurations().each{ file, duration ->
+			else
+			{
 				report.append("""
 		<tr>
-			<td>${escapeHtml(lang.getLanguage())}</td>
-			<td>${escapeHtml(file)}</td>
-			<td>${duration}</td>
+			<td>${escapeHtml(task.getName())}</td>
+			<td>${task.getDuration()}</td>
 		</tr>""")
 			}
 		}
