@@ -351,11 +351,17 @@ def endReport( StringBuffer report)
 </html>""")
 }
 
-// Start the Report table with headers. There is one row for each build.
+// Start the Report table. There is one row for each build, each preceded by the headers (reportTableHeaders).
 def startReportTable( StringBuffer report)
 {
 	report.append("""
-	<table border="1" cellpadding="4" summary="Build metrics">
+	<table border="1" cellpadding="4" summary="Build metrics">""")
+}
+
+// Add the header row of the report table. Call this before the row of each build.
+def reportTableHeaders( StringBuffer report)
+{
+	report.append("""
 		<tr>
 			<th style="text-align:left">Application</th>
 			<th style="text-align:left">Repository</th>
