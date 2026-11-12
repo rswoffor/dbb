@@ -440,12 +440,13 @@ def reportBuildMetrics( StringBuffer report, def build )
 		</tr>""")
 }
 
-// Add the task durations, the file durations of each language, and the changed and impacted files of one build
+// Add a row under the row of the build with the task durations, the file durations of each language, and the
+// changed and impacted files of the build. The row has one cell that spans all columns of the build table.
+// Call this right after reportBuildMetrics for the same build.
 def reportBuildMetricsDetails( StringBuffer report, def build )
 {
 	def bm = build.getBuildMetrics()
-	report.append("""
-	<h3>Build ${escapeHtml(bm.getBuildID())} (${escapeHtml(bm.getApplicationName())})</h3>""")
+	def details = new StringBuffer()
 
 	// One table for all tasks. A language task is shown as Language(name) and its duration cell is a
 	// nested table with the duration of each file of that language.
@@ -454,76 +455,88 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 	}
 	if (taskMetrics)
 	{
-		report.append("""
-	<table border="1" cellpadding="4" summary="Task durations">
-		<tr>
-			<th style="text-align:left">Task</th>
-			<th style="text-align:left">Duration (ms)</th>
-		</tr>""")
+		details.append("""
+			<table border="1" cellpadding="4" summary="Task durations">
+				<tr>
+					<th style="text-align:left">Task</th>
+					<th style="text-align:left">Duration (ms)</th>
+				</tr>""")
 		taskMetrics.each{ task ->
 			if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
 			{
 				// The cell has no padding so the nested table fills the whole duration column. The outer border
 				// of the nested table is hidden so that it does not double up with the border of the cell.
-				report.append("""
-		<tr>
-			<td>${escapeHtml("Language(${task.getLanguage()})")}</td>
-			<td style="padding:0">""")
+				details.append("""
+				<tr>
+					<td>${escapeHtml("Language(${task.getLanguage()})")}</td>
+					<td style="padding:0">""")
 				if (!task.getFileDurations().isEmpty())
 				{
-					report.append("""
-				<table style="width:100%; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">""")
+					details.append("""
+						<table style="width:100%; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">""")
 					task.getFileDurations().each{ file, duration ->
-						report.append("""
-					<tr>
-						<td>${escapeHtml(file)}</td>
-						<td>${duration}</td>
-					</tr>""")
+						details.append("""
+							<tr>
+								<td>${escapeHtml(file)}</td>
+								<td>${duration}</td>
+							</tr>""")
 					}
-					report.append("""
-				</table>""")
+					details.append("""
+						</table>""")
 				}
-				report.append("""</td>
-		</tr>""")
+				details.append("""</td>
+				</tr>""")
 			}
 			else
 			{
-				report.append("""
-		<tr>
-			<td>${escapeHtml(task.getName())}</td>
-			<td>${task.getDuration()}</td>
-		</tr>""")
+				details.append("""
+				<tr>
+					<td>${escapeHtml(task.getName())}</td>
+					<td>${task.getDuration()}</td>
+				</tr>""")
 			}
 		}
-		report.append("""
-	</table>""")
+		details.append("""
+			</table>""")
 	}
 
 	if (bm.getChangedFiles() != null || bm.getImpactedFiles() != null)
 	{
-		report.append("""
-	<br/>
-	<table border="1" cellpadding="4" summary="Changed and impacted files">
-		<tr>
-			<th style="text-align:left">Impact Analysis</th>
-			<th style="text-align:left">File</th>
-		</tr>""")
+		details.append("""
+			<br/>
+			<table border="1" cellpadding="4" summary="Changed and impacted files">
+				<tr>
+					<th style="text-align:left">Impact Analysis</th>
+					<th style="text-align:left">File</th>
+				</tr>""")
 		bm.getChangedFiles()?.each{ file ->
-			report.append("""
-		<tr>
-			<td>Changed</td>
-			<td>${escapeHtml(file)}</td>
-		</tr>""")
+			details.append("""
+				<tr>
+					<td>Changed</td>
+					<td>${escapeHtml(file)}</td>
+				</tr>""")
 		}
 		bm.getImpactedFiles()?.each{ file ->
-			report.append("""
-		<tr>
-			<td>Impacted</td>
-			<td>${escapeHtml(file)}</td>
-		</tr>""")
+			details.append("""
+				<tr>
+					<td>Impacted</td>
+					<td>${escapeHtml(file)}</td>
+				</tr>""")
 		}
+		details.append("""
+			</table>""")
+	}
+
+	// The build table has 19 columns
+	if (details.length() > 0)
+	{
 		report.append("""
-	</table>""")
+		<tr>
+			<td colspan="19">""")
+		report.append(details)
+		report.append("""
+			</td>
+		</tr>""")
 	}
 }
 	

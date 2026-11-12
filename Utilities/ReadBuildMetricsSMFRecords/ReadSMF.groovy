@@ -142,10 +142,13 @@ if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
 	// The metrics of one build can span several SMF records. Merge the records of each build.
 	builds = BuildMetricsSmfRecord.reassemble(metricsRecords)
 	println("** Read $count build metrics record(s) for ${builds.size()} build(s)")
+	// Each build is a row of the table, followed by a row with its tasks and impacted files
 	tools.startReportTable(report)
-	builds.each{ build -> tools.reportBuildMetrics(report, build) }
+	builds.each{ build ->
+		tools.reportBuildMetrics(report, build)
+		tools.reportBuildMetricsDetails(report, build)
+	}
 	tools.endReportTable(report)
-	builds.each{ build -> tools.reportBuildMetricsDetails(report, build) }
 	report.append("""
 	<p>Total build metrics records: $count</p>
 	<p>Total builds: ${builds.size()}</p>
