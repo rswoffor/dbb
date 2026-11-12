@@ -17,7 +17,7 @@ def parseArgs(String[] cliArgs){
 	cli.t(longOpt: 'type', args:1,optionalArg:true, argName:'type','SMF type to process. Can be a number or range (i.e. 0:255)')
 	cli.d(longOpt: 'datasets', args:1, valueSeparator:',', optionalArg:true, argName:'datasets','Comma separated list of SMF datasets as defined in SYS1.PARMLIB(SMFPRMxx) DSNAME option')
 	cli.l(longOpt: 'logstreams', args:1, valueSeparator:',', optionalArg:true, argName:'logstreams','Comma separated list of SMF log streams, when SMF records are recorded to log streams. Takes precedence over --datasets')
-	cli.w(longOpt: 'workDir', args:1, argName:'dir', 'Absolute path to the build output directory')
+	cli.w(longOpt: 'workDir', args:1, argName:'dir', 'Path to the output directory for the logs and the report. Default is logs')
 	cli.e(longOpt: 'logEncoding', args:1, argName:'encoding', 'Encoding of output logs. Default is EBCDIC')
 	cli.j(longOpt: 'json', 'Write the build metrics as JSON (SMFReport.json) instead of an HTML table (SMFReport.html)')
 	
@@ -59,6 +59,9 @@ def loadProperties(OptionAccessor opts) {
 	if (opts.w) properties.workDir = opts.w
 	if (opts.e) properties.logEncoding = opts.e
 	if (opts.j) properties.outputJson = "true"
+	
+	// Default the output directory when it was not set by the command line or by smf.properties
+	if (!properties.workDir) properties.workDir = "logs"
 	
 	validateType(properties.recordType)
 	
