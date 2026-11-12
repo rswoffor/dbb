@@ -444,11 +444,16 @@ def reportImpactAnalysisRow( StringBuffer details, def bm, def duration )
 	// The cells have no padding so the nested tables fill the whole cell. The outer border of a nested table
 	// is hidden so that it does not double up with the border of the cell.
 	def nested = "width:100%; border-collapse:collapse; border-style:hidden"
+	// Fixed 30/70 columns, the same as the language file tables, so that the columns line up
 	details.append("""
 				<tr>
 					<td>ImpactAnalysis</td>
 					<td style="padding:0">
-						<table style="${nested}" summary="Impact analysis">""")
+						<table style="${nested}; table-layout:fixed" summary="Impact analysis">
+							<colgroup>
+								<col style="width:30%"/>
+								<col style="width:70%"/>
+							</colgroup>""")
 	if (duration != null)
 	{
 		details.append("""
