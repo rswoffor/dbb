@@ -521,6 +521,7 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 			{
 				// The cell has no padding so the nested table fills the whole duration column. The outer border
 				// of the nested table is hidden so that it does not double up with the border of the cell.
+				// The nested tables of all languages have fixed column widths so that their columns line up.
 				details.append("""
 				<tr>
 					<td>${escapeHtml("Language(${task.getLanguage()})")}</td>
@@ -528,12 +529,16 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 				if (!task.getFileDurations().isEmpty())
 				{
 					details.append("""
-						<table style="width:100%; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">""")
+						<table style="width:100%; table-layout:fixed; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">
+							<colgroup>
+								<col style="width:80%"/>
+								<col style="width:20%"/>
+							</colgroup>""")
 					task.getFileDurations().each{ file, duration ->
 						details.append("""
 							<tr>
-								<td>${escapeHtml(file)}</td>
-								<td>${duration}</td>
+								<td style="word-break:break-all">${escapeHtml(file)}</td>
+								<td style="text-align:right">${duration}</td>
 							</tr>""")
 					}
 					details.append("""
