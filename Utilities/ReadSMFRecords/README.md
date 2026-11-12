@@ -33,6 +33,6 @@ This script allows a user to read SMF records, specifically the DBB SMF record. 
  <td valign="top">-t,--type &lt;type&gt;</td><td valign="top">SMF type to process. Can be a number or range (i.e. 0:255)</td>
 </tr>
 <tr>
- <td valign="top">-w,--workDir &lt;dir&gt;</td><td valign="top">Absolute path to the build output directory</td>
+ <td valign="top">-w,--workDir &lt;dir&gt;</td><td valign="top">Path to the output directory for the logs and the report. Default is <code>logs</code>, relative to the current directory</td>
 </tr>
 </table>
