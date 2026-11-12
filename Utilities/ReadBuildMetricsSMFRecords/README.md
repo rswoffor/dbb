@@ -8,7 +8,7 @@ The smf.properties is loaded by the read SMF script to provide default values fo
 * recordType - The SMF record type to process. This can be a single number or a range (i.e. 0:255).
 * datasets - The SMF datasets, a comma separated list, as defined in SYS1.PARMLIB(SMFPRMxx) DSNAME option. Use this when SMF records are recorded to SMF data sets. The script dumps them with IFASMFDP.
 * logstreams - The SMF log streams, a comma separated list, as defined in SYS1.PARMLIB(SMFPRMxx) LSNAME option. Use this when SMF records are recorded to log streams. The script dumps them with IFASMFDL. If both logstreams and datasets are set, logstreams is used.
-* outputJson - Set to true to write the build metrics as JSON (SMFReport.json) instead of an HTML table (SMFReport.html). Default is false.
+* outputJson - Set to true to also write the build metrics as JSON (SMFReport.json) in addition to the HTML report (SMFReport.html). Default is false.
 
 Provide either datasets or logstreams. The rest of the processing is the same for both.
  
@@ -25,7 +25,7 @@ This script allows a user to read SMF records, specifically the DBB SMF record. 
  <td valign="top">-h,--help</td><td valign="top">help</td>
 </tr>
 <tr>
- <td valign="top">-j,--json</td><td valign="top">Write the build metrics as JSON (SMFReport.json) instead of an HTML table (SMFReport.html)</td>
+ <td valign="top">-j,--json</td><td valign="top">Also write the build metrics as JSON (SMFReport.json) in addition to the HTML report (SMFReport.html)</td>
 </tr>
 <tr>
  <td valign="top">-l,--logstreams &lt;logstreams&gt;</td><td valign="top">Comma separated list of SMF log streams, when SMF records are recorded to log streams. Takes precedence over --datasets</td>

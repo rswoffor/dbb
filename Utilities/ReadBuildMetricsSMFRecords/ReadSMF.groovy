@@ -91,12 +91,11 @@ repro.copy(new CopyToHFS().ddName("SYSPRINT").file(reprologFile).hfsEncoding(pro
 def rc = new MVSJob().executable(smfDump).executable(repro).maxRC(4).execute()
 println("IFASMFDP/IDCAMS rc=$rc")
 
-// The report is either an HTML report (the default) or, with the --json option, a JSON file
+// The HTML report is always written. With the --json option, a JSON file is written as well.
 def jsonMode = Boolean.parseBoolean(properties.outputJson)
 StringBuffer report = new StringBuffer()
 def builds = []
-if (!jsonMode)
-	tools.startReport(report)
+tools.startReport(report)
 // Now data is in ${smfwrk}. We will read this data directly from dataset so we can read record by record
 if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
 {
@@ -143,24 +142,18 @@ if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
 	// The metrics of one build can span several SMF records. Merge the records of each build.
 	builds = BuildMetricsSmfRecord.reassemble(metricsRecords)
 	println("** Read $count build metrics record(s) for ${builds.size()} build(s)")
-	if (!jsonMode)
-	{
-		tools.startReportTable(report)
-		builds.each{ build -> tools.reportBuildMetrics(report, build) }
-		tools.endReportTable(report)
-		builds.each{ build -> tools.reportBuildMetricsDetails(report, build) }
-		report.append("""
+	tools.startReportTable(report)
+	builds.each{ build -> tools.reportBuildMetrics(report, build) }
+	tools.endReportTable(report)
+	builds.each{ build -> tools.reportBuildMetricsDetails(report, build) }
+	report.append("""
 	<p>Total build metrics records: $count</p>
 	<p>Total builds: ${builds.size()}</p>
 """)
-	}
 }
+tools.endReport(report)
+tools.writeReport(report)
 if (jsonMode)
 {
 	tools.writeJsonReport(builds)
-}
-else
-{
-	tools.endReport(report)
-	tools.writeReport(report)
 }

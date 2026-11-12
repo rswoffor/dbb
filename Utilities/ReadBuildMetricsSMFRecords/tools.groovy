@@ -19,7 +19,7 @@ def parseArgs(String[] cliArgs){
 	cli.l(longOpt: 'logstreams', args:1, valueSeparator:',', optionalArg:true, argName:'logstreams','Comma separated list of SMF log streams, when SMF records are recorded to log streams. Takes precedence over --datasets')
 	cli.w(longOpt: 'workDir', args:1, argName:'dir', 'Path to the output directory for the logs and the report. Default is logs')
 	cli.e(longOpt: 'logEncoding', args:1, argName:'encoding', 'Encoding of output logs. Default is EBCDIC')
-	cli.j(longOpt: 'json', 'Write the build metrics as JSON (SMFReport.json) instead of an HTML table (SMFReport.html)')
+	cli.j(longOpt: 'json', 'Also write the build metrics as JSON (SMFReport.json) in addition to the HTML report (SMFReport.html)')
 	
 	def opts = cli.parse(cliArgs)
 	if(opts.h)
