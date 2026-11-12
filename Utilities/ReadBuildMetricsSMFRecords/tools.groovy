@@ -531,8 +531,8 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 					details.append("""
 						<table style="width:100%; table-layout:fixed; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">
 							<colgroup>
-								<col style="width:40%"/>
-								<col style="width:60%"/>
+								<col style="width:30%"/>
+								<col style="width:70%"/>
 							</colgroup>""")
 					task.getFileDurations().each{ file, duration ->
 						details.append("""
