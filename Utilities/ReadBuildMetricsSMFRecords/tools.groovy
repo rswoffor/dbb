@@ -370,8 +370,6 @@ def startReportTable( StringBuffer report)
 			<th style="text-align:left">End Time</th>
 			<th style="text-align:left">Duration (ms)</th>
 			<th style="text-align:left">Files Built</th>
-			<th style="text-align:left">Files Changed</th>
-			<th style="text-align:left">Files Impacted</th>
 			<th style="text-align:left">Failed Task</th>
 			<th style="text-align:left">Failure Message</th>
 			<th style="text-align:left">Records</th>
@@ -431,8 +429,6 @@ def reportBuildMetrics( StringBuffer report, def build )
 			<td>${bm.getBuildEndTime() ?: ''}</td>
 			<td>${bm.getBuildDuration()}</td>
 			<td>${bm.getNumFilesBuilt()}</td>
-			<td>${bm.getNumFilesChanged() != null ? bm.getNumFilesChanged() : ''}</td>
-			<td>${bm.getNumFilesImpacted() != null ? bm.getNumFilesImpacted() : ''}</td>
 			<td>${escapeHtml(bm.getFailedTask())}</td>
 			<td>${escapeHtml(bm.getFailureMessage())}</td>
 			<td>${escapeHtml(records)}</td>
@@ -440,8 +436,59 @@ def reportBuildMetrics( StringBuffer report, def build )
 		</tr>""")
 }
 
-// Add a row under the row of the build with the task durations, the file durations of each language, and the
-// changed and impacted files of the build. The row has one cell that spans all columns of the build table.
+// Add the ImpactAnalysis row to the task table. The duration cell is a nested table with the duration of the
+// task, the number of changed files and the changed files, and the number of impacted files and the impacted files.
+// duration is null when the build has impact analysis information but no ImpactAnalysis task.
+def reportImpactAnalysisRow( StringBuffer details, def bm, def duration )
+{
+	// The cells have no padding so the nested tables fill the whole cell. The outer border of a nested table
+	// is hidden so that it does not double up with the border of the cell.
+	def nested = "width:100%; border-collapse:collapse; border-style:hidden"
+	details.append("""
+				<tr>
+					<td>ImpactAnalysis</td>
+					<td style="padding:0">
+						<table style="${nested}" summary="Impact analysis">""")
+	if (duration != null)
+	{
+		details.append("""
+							<tr>
+								<td>Duration (ms)</td>
+								<td>${duration}</td>
+							</tr>""")
+	}
+	[["Files Changed", bm.getNumFilesChanged(), bm.getChangedFiles()],
+	 ["Files Impacted", bm.getNumFilesImpacted(), bm.getImpactedFiles()]].each{ label, count, files ->
+		if (count == null && files == null)
+			return
+		details.append("""
+							<tr>
+								<td>${label}${count != null ? " (${count})" : ""}</td>
+								<td style="padding:0">""")
+		if (files)
+		{
+			details.append("""
+									<table style="${nested}" summary="${label}">""")
+			files.each{ file ->
+				details.append("""
+										<tr>
+											<td>${escapeHtml(file)}</td>
+										</tr>""")
+			}
+			details.append("""
+									</table>""")
+		}
+		details.append("""</td>
+							</tr>""")
+	}
+	details.append("""
+						</table>
+					</td>
+				</tr>""")
+}
+
+// Add a row under the row of the build with the task durations and the file durations of each language.
+// The row has one cell that spans all columns of the build table.
 // Call this right after reportBuildMetrics for the same build.
 def reportBuildMetricsDetails( StringBuffer report, def build )
 {
@@ -449,11 +496,15 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 	def details = new StringBuffer()
 
 	// One table for all tasks. A language task is shown as Language(name) and its duration cell is a
-	// nested table with the duration of each file of that language.
+	// nested table with the duration of each file of that language. The ImpactAnalysis task also shows the
+	// changed and impacted files.
 	def taskMetrics = bm.getTaskMetricsList().findAll{
 		it instanceof com.ibm.dbb.build.smf.metrics.TaskMetricImpl || it instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl
 	}
-	if (taskMetrics)
+	def impactTask = taskMetrics.find{ it instanceof com.ibm.dbb.build.smf.metrics.TaskMetricImpl && it.getName() == "ImpactAnalysis" }
+	def hasImpactInfo = bm.getNumFilesChanged() != null || bm.getNumFilesImpacted() != null ||
+		bm.getChangedFiles() != null || bm.getImpactedFiles() != null
+	if (taskMetrics || hasImpactInfo)
 	{
 		details.append("""
 			<table border="1" cellpadding="4" summary="Task durations">
@@ -462,7 +513,11 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 					<th style="text-align:left">Duration (ms)</th>
 				</tr>""")
 		taskMetrics.each{ task ->
-			if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
+			if (task.is(impactTask))
+			{
+				reportImpactAnalysisRow(details, bm, task.getDuration())
+			}
+			else if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
 			{
 				// The cell has no padding so the nested table fills the whole duration column. The outer border
 				// of the nested table is hidden so that it does not double up with the border of the cell.
@@ -496,43 +551,19 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 				</tr>""")
 			}
 		}
+		// Impact analysis information without an ImpactAnalysis task is not lost
+		if (impactTask == null && hasImpactInfo)
+			reportImpactAnalysisRow(details, bm, null)
 		details.append("""
 			</table>""")
 	}
 
-	if (bm.getChangedFiles() != null || bm.getImpactedFiles() != null)
-	{
-		details.append("""
-			<br/>
-			<table border="1" cellpadding="4" summary="Changed and impacted files">
-				<tr>
-					<th style="text-align:left">Impact Analysis</th>
-					<th style="text-align:left">File</th>
-				</tr>""")
-		bm.getChangedFiles()?.each{ file ->
-			details.append("""
-				<tr>
-					<td>Changed</td>
-					<td>${escapeHtml(file)}</td>
-				</tr>""")
-		}
-		bm.getImpactedFiles()?.each{ file ->
-			details.append("""
-				<tr>
-					<td>Impacted</td>
-					<td>${escapeHtml(file)}</td>
-				</tr>""")
-		}
-		details.append("""
-			</table>""")
-	}
-
-	// The build table has 19 columns
+	// The build table has 17 columns
 	if (details.length() > 0)
 	{
 		report.append("""
 		<tr>
-			<td colspan="19">""")
+			<td colspan="17">""")
 		report.append(details)
 		report.append("""
 			</td>
