@@ -107,16 +107,13 @@ if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
 		while ((bytesRead = reader.read(buffer)) >= 0)
 		{
 			byte[] data = Arrays.copyOf(buffer, bytesRead)
-			try
+			// Only the type 122 subtype 2 DBB records are reported.
+			def header = new SmfRecord(data, true)
+			if (header.getType() == 122 && header.getSubType() == 2)
 			{
-			   def smfRec = SmfRecordFactory.toRecord(data)
-               // Add SMF information to the html table
+			   // Add SMF information to the html table
 			   tools.reportSMFRecord( report, data )
 			   count++
-			}
-			catch (IllegalArgumentException e)
-			{
-			   // ignore non-type 122 SMF records
 			}
 		}
 	}
