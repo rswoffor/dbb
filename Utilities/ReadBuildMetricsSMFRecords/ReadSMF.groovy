@@ -110,24 +110,17 @@ if ( rc == 0 && ZFile.dsExists("//'${smfwrk}'") )
 		while ((bytesRead = reader.read(buffer)) >= 0)
 		{
 			byte[] data = Arrays.copyOf(buffer, bytesRead)
-			try
+			// Only the type 122 subtype 3 build metrics records are reported. Check the header first, because
+			// SmfRecordFactory fails with a missing message (SMF_RECORD_UNKNOWN) for any other subtype.
+			def header = new SmfRecord(data, true)
+			if (header.getType() == 122 && header.getSubType() == 3)
 			{
-			   // Only the type 122 subtype 3 build metrics records are reported. Check the header first, because
-			   // SmfRecordFactory fails with a missing message (SMF_RECORD_UNKNOWN) for any other subtype.
-			   def header = new SmfRecord(data, true)
-			   if (header.getType() == 122 && header.getSubType() == 3)
-			   {
-			      def smfRec = SmfRecordFactory.toSmfRecord(data)
-			      if (smfRec instanceof BuildMetricsSmfRecord)
-			      {
-			         metricsRecords << smfRec
-			         count++
-			      }
-			   }
-			}
-			catch (IllegalArgumentException e)
-			{
-			   // ignore records that cannot be read as a build metrics record
+				def smfRec = SmfRecordFactory.toSmfRecord(data)
+				if (smfRec instanceof BuildMetricsSmfRecord)
+				{
+					metricsRecords << smfRec
+			    	count++
+				}
 			}
 		}
 	}
