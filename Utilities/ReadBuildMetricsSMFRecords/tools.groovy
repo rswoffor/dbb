@@ -518,6 +518,8 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 	// One table for all tasks. A language task is shown as Language(name) and its duration cell is a
 	// nested table with the duration of each file of that language. The ImpactAnalysis task also shows the
 	// changed and impacted files.
+	// Only the file table of the first language task has a header. The others have the same column widths.
+	def languageHeaderDone = false
 	def taskMetrics = bm.getTaskMetricsList().findAll{
 		it instanceof com.ibm.dbb.build.smf.metrics.TaskMetricImpl || it instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl
 	}
@@ -554,6 +556,15 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 								<col style="width:30%"/>
 								<col style="width:70%"/>
 							</colgroup>""")
+					if (!languageHeaderDone)
+					{
+						languageHeaderDone = true
+						details.append("""
+							<tr>
+								<th class="sub" style="text-align:left">File</th>
+								<th class="sub" style="text-align:left">Duration (ms)</th>
+							</tr>""")
+					}
 					task.getFileDurations().each{ file, duration ->
 						details.append("""
 							<tr>
