@@ -451,23 +451,37 @@ def reportBuildMetrics( StringBuffer report, def build )
 		</tr>""")
 }
 
+// Width of the first column of the ImpactAnalysis and language file subtables of a build. It is as wide as the longest
+// language file name or ImpactAnalysis label of the build, so that the file names do not wrap and the columns of
+// all subtables of the build line up. The font is proportional, so each character is given 0.7em, which fits
+// upper case names. The 20px is the horizontal padding of a cell.
+def firstColumnWidth( def bm )
+{
+	def lengths = ["Duration (ms)", "Files Changed (${bm.getNumFilesChanged()})", "Files Impacted (${bm.getNumFilesImpacted()})"]*.length()
+	bm.getTaskMetricsList().findAll{ it instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl }.each{ task ->
+		task.getFileDurations().keySet().each{ file -> lengths << file.length() }
+	}
+	return "calc(${lengths.max() * 0.7}em + 20px)"
+}
+
 // Add the ImpactAnalysis row to the task table. The duration cell is a nested table with the duration of the
 // task, the number of changed files and the changed files, and the number of impacted files and the impacted files.
 // duration is null when the build has impact analysis information but no ImpactAnalysis task.
-def reportImpactAnalysisRow( StringBuffer details, def bm, def duration )
+// firstColumn is the width of the first column of the nested table (see firstColumnWidth).
+def reportImpactAnalysisRow( StringBuffer details, def bm, def duration, String firstColumn )
 {
 	// The cells have no padding so the nested tables fill the whole cell. The outer border of a nested table
 	// is hidden so that it does not double up with the border of the cell.
 	def nested = "width:100%; border-collapse:collapse; border-style:hidden"
-	// Fixed 30/70 columns, the same as the language file tables, so that the columns line up
+	// The same first column width as the language file tables, so that the columns line up
 	details.append("""
 				<tr>
 					<td>ImpactAnalysis</td>
 					<td style="padding:0">
 						<table style="${nested}; table-layout:fixed" summary="Impact analysis">
 							<colgroup>
-								<col style="width:30%"/>
-								<col style="width:70%"/>
+								<col style="width:${firstColumn}"/>
+								<col/>
 							</colgroup>""")
 	if (duration != null)
 	{
@@ -514,6 +528,7 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 {
 	def bm = build.getBuildMetrics()
 	def details = new StringBuffer()
+	def firstColumn = firstColumnWidth(bm)
 
 	// One table for all tasks. A language task is shown as Language(name) and its duration cell is a
 	// nested table with the duration of each file of that language. The ImpactAnalysis task also shows the
@@ -537,7 +552,7 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 		taskMetrics.each{ task ->
 			if (task.is(impactTask))
 			{
-				reportImpactAnalysisRow(details, bm, task.getDuration())
+				reportImpactAnalysisRow(details, bm, task.getDuration(), firstColumn)
 			}
 			else if (task instanceof com.ibm.dbb.build.smf.metrics.LanguageTaskMetricsImpl)
 			{
@@ -553,8 +568,8 @@ def reportBuildMetricsDetails( StringBuffer report, def build )
 					details.append("""
 						<table style="width:100%; table-layout:fixed; border-collapse:collapse; border-style:hidden" summary="File durations of ${escapeHtml(task.getLanguage())}">
 							<colgroup>
-								<col style="width:30%"/>
-								<col style="width:70%"/>
+								<col style="width:${firstColumn}"/>
+								<col/>
 							</colgroup>""")
 					if (!languageHeaderDone)
 					{
